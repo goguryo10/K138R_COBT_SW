@@ -1,0 +1,14 @@
+del *__.c
+del *.c~
+del *.h~
+del *.i
+del *.asm
+del *.bak
+del *.cof
+del *.inc
+del *.lst
+del *.map
+del *.obj
+del *.rom
+del *.vec
+del *.err
