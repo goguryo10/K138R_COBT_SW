@@ -18,6 +18,90 @@ Data Stack size     : 256
 #include <mega16.h>
 #include "cob_sw.h"
 
+
+unsigned char flagTx;
+unsigned char TxSize;
+unsigned char TxPoint;
+unsigned char TxBuff[10];
+
+unsigned char flagRx;
+unsigned char RxSize;
+unsigned char RxPoint;
+unsigned char RxBuff[10];
+
+unsigned char flagEmRemote;
+unsigned char flagIpRemote;
+
+unsigned char ttl_out0;	// 운전실통화
+unsigned char ttl_out1;	// 비상호출
+
+
+#define RXB8 1
+#define TXB8 0
+#define UPE 2
+#define OVR 3
+#define FE 4
+#define UDRE 5
+#define RXC 7
+
+#define FRAMING_ERROR (1<<FE)
+#define PARITY_ERROR (1<<UPE)
+#define DATA_OVERRUN (1<<OVR)
+#define DATA_REGISTER_EMPTY (1<<UDRE)
+#define RX_COMPLETE (1<<RXC)
+
+
+// USART Receiver interrupt service routine
+interrupt [USART_RXC] void usart_rx_isr(void)
+{
+	unsigned char status,data;
+	status = UCSRA;
+	data=UDR;
+	
+	if ((status & (FRAMING_ERROR | PARITY_ERROR | DATA_OVERRUN))==0)
+	{
+		switch(data)
+		{
+			case 0xFFU:
+				flagRx = 0;
+				RxSize = 0;
+				RxPoint = 0;
+				break;
+				
+			case 0xFEU:
+				flagRx = 1;
+				RxSize = RxPoint;
+				RxPoint = 0;
+				break;
+
+			default:
+				if(RxPoint < (10-1)) {
+					RxBuff[RxPoint++] = data;
+				}
+				break;
+		}
+	}
+}
+
+
+// USART Transmitter interrupt service routine
+interrupt [USART_TXC] void usart_tx_isr(void)
+{
+	if ((flagTx == 0x01) && (TxSize>0 ))
+	{	
+		if(TxPoint >= TxSize)
+		{
+			TxPoint = 0;
+			TxSize = 0;
+			flagTx = 0x00;
+		}else{
+			UDR = TxBuff[TxPoint];
+			TxPoint++;
+		}
+	}
+}
+
+
 // Timer 0 overflow interrupt service routine
 interrupt [TIM0_OVF] void timer0_ovf_isr(void)
 {
@@ -54,6 +138,33 @@ TCNT0+=0xE7;
 
 // Declare your global variables here
 
+
+void SendPda(unsigned char d0, unsigned char d1, unsigned char d2, unsigned char d3, unsigned char d4, unsigned char d5, unsigned char d6, unsigned char d7)
+{
+	int i = 0;
+	
+	if(flagTx == 0x00)
+	{	
+ 		TxSize = 0;
+		TxPoint = 0;
+		TxBuff[i++] = 0xFFU;
+		TxBuff[i++] = d0;
+		TxBuff[i++] = d1;
+		TxBuff[i++] = d2;
+		TxBuff[i++] = d3;
+		TxBuff[i++] = d4;
+		TxBuff[i++] = d5;
+		TxBuff[i++] = d6;
+		TxBuff[i++] = d7;
+		TxBuff[i++] = 0xFEU;
+		TxSize = i;
+		UDR = TxBuff[0];
+		TxPoint = 1;
+		flagTx = 0x01;
+	}
+}
+
+
 void main(void)
 {
 // Declare your local variables here
@@ -78,10 +189,10 @@ PORTC=0xFF;
 DDRC=0xC0;
 
 // Port D initialization
-// Func7=In Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In 
+// Func7=In Func6=In Func5=In Func4=In Func3=In Func2=Out Func1=Txd Func0=Rxd 
 // State7=P State6=P State5=P State4=P State3=P State2=P State1=P State0=P 
 PORTD=0xFF;
-DDRD=0x00;
+DDRD=0x06;
 
 // Timer/Counter 0 initialization
 // Clock source: System Clock
@@ -135,17 +246,57 @@ MCUCSR=0x00;
 // Timer(s)/Counter(s) Interrupt(s) initialization
 TIMSK=0x01;
 
+// 2020-11-02 ADD USART instead TTL0, TTL1 by xsnake
+// ##########################################################
+// 시리얼 통신 설정 
+// USART initialization
+// Communication Parameters: 8 Data, 1 Stop, No Parity
+// USART Receiver: On
+// USART Transmitter: On
+// USART Mode: Asynchronous
+// USART Baud rate: 19200
+UCSRA=0x00;
+UCSRB=0xD8;
+UCSRC=0x86;
+UBRRH=0x00;
+UBRRL=0x33;
+// ##########################################################
+
+
 // Analog Comparator initialization
 // Analog Comparator: Off
 // Analog Comparator Input Capture by Timer/Counter 1: Off
 ACSR=0x80;
 SFIOR=0x00;
 
+
+flagTx = 0x00;
+TxSize = 0x00;
+TxPoint = 0x00;
+TxBuff[0] = 0x00;
+TxBuff[1] = 0x00;
+TxBuff[2] = 0x00;
+TxBuff[3] = 0x00;
+TxBuff[4] = 0x00;
+TxBuff[5] = 0x00;
+TxBuff[6] = 0x00;
+TxBuff[7] = 0x00;
+TxBuff[8] = 0x00;
+TxBuff[9] = 0x00;
+
+flagRx = 0x00;
+RxSize = 0x00;
+RxPoint = 0x00;
+
+
 flagEm = 0x00;
 flagIp = 0x00;
+flagEmRemote = 0x00;
+flagIpRemote = 0x00;
 
 SGCNT01 =1;
 SGCNT02 =1;
+SGCNT03 =1;
 
 
 CarType = ID_CREW;
@@ -153,40 +304,73 @@ CarType = ID_CREW;
 // Global enable interrupts
 #asm("sei")
 
-tempint = 0;
-while(tempint < 800){
-	if(flag10msec){
-		flag10msec = 0;
-		tempint++;
-		
-		temp = 0x00;
-		if(!CAR_PORT1){
-			temp |= CAR1;
-			//LED_LEFT = 0;
-		}
-		if(!CAR_PORT2){
-			temp |= CAR2;
-			//LED_RIGHT = 0;
-		}
+	tempint = 0;
+	while(tempint < 800)
+	{
+		if(flag10msec)
+		{
+			flag10msec = 0;
+			tempint++;
+			
+			temp = 0x00;
+			if(!CAR_PORT1){
+				temp |= CAR1;
+				//LED_LEFT = 0;
+			}
+			if(!CAR_PORT2){
+				temp |= CAR2;
+				//LED_RIGHT = 0;
+			}
 
-		CarBuff[2] = CarBuff[1];
-		CarBuff[1] = CarBuff[0];
-		CarBuff[0] = temp;
+			CarBuff[2] = CarBuff[1];
+			CarBuff[1] = CarBuff[0];
+			CarBuff[0] = temp;
+		}
 	}
-}
 
-while (1)
-      {
-      // Place your code here
-	Proc10msec();
-      };
+	while (1)
+	{
+	    // Place your code here
+		Proc10msec();
+	};
 }
 
 void Proc10msec(void)
 {
-	if(flag10msec){
+	unsigned char EMRQ;
+	static unsigned char EMRQ_BK = 0;
+	static unsigned char flagEm_BK = 0;
+	static unsigned char flagIp_BK = 0;
+	static unsigned char Brflag_BK = 0;
+	static unsigned char resend = 0;
+
+	if(flagRx) {
+		flagRx = 0;
+
+		if(RxBuff[1] & 0x01U) {
+			ttl_out0 = 1;
+		}
+		else {
+			ttl_out0 = 0;
+		}
+		if(RxBuff[1] & 0x02U) {
+			ttl_out1 = 1;
+		}
+		else {
+			ttl_out1 = 0;
+		}
+	}
+
+	
+	if(flag10msec)
+	{
 		flag10msec = 0;
 		CarTypeProc();
+
+		// 2026-02-12 ramarama
+		//	All ways COB(T) for Crew
+		CarType = ID_CREW;
+		
 		//if(CarType == KORAIL){
 		if(CarType == ID_CREW){
 			CrewProc();
@@ -195,6 +379,29 @@ void Proc10msec(void)
 			//MetroProc();
 			CabProc();
 		}
+
+		// 2026-02-12 ramarama
+		//	운통/비상통화 
+		{
+			EMRQ = CALL_EM;
+
+			//if((EMRQ_BK!=EMRQ) || (flagEm_BK!=flagEm) || (flagIp_BK!=flagIp) || (Brflag_BK!=Brflag))
+			if((resend>0) || (flagEm_BK!=flagEm) || (flagIp_BK!=flagIp) || (Brflag_BK!=Brflag))
+			{
+				if(resend == 0) {
+					resend = 3;
+				}
+				if(resend > 0) {
+					resend --;
+				}
+				SendPda(flagEm, flagIp, Brflag, 0xF0, SGCNT01, SGCNT02, SGCNT03, 0xF0);
+			}
+			EMRQ_BK = EMRQ;
+			flagEm_BK = flagEm;
+			flagIp_BK = flagIp;
+			Brflag_BK = Brflag;
+		}
+
 	}
 }
 
@@ -246,18 +453,9 @@ void CrewProc(void)
 	BrSwProc();
 	MicProc();
 	LedProc();
-	/*if((flagEm == 0x01) && (countEmDelay<150)){
-		countEmDelay++;
-		if(PdaBuff[3] == 0x03){
-			PdaBuff[0] = 0x00;
-			PdaBuff[1] = 0x00;
-			PdaBuff[2] = 0x00;
-			PdaBuff[3] = 0x00;
-		}
-	}*/
-	//else{
-		PdaProc();
-	//}
+
+	PdaProc();
+
 	if(!Brflag && (NoSwIncount < NO_IN_TIMEOUT)){
 		NoSwIncount++;
 		if(NoSwIncount >= NO_IN_TIMEOUT){
@@ -511,6 +709,14 @@ void MicProc(void)
 			else{
 				CT_RIGHT = 1;
 			}
+			// 2026-02-10 ramarama
+			//	수동방송시에 PCC 제어하여 자동방송 중단하기 위해			
+			if((BrWaitBuff & (ROOM|LEFT|RIGHT)) != 0x00U) {
+				CT_PCC = 0;
+			}
+			else {
+				CT_PCC = 1;
+			}
 		}
 	}
 	else{
@@ -522,6 +728,9 @@ void MicProc(void)
 			CT_LEFT = 1;
 			CT_RIGHT = 1;
 			Brflag = 0;
+			// 2026-02-10 ramarama
+			//	수동방송시에 PCC 제어하여 자동방송 중단하기 위해			
+			CT_PCC = 1;
 		}
 	}
 }
@@ -530,7 +739,7 @@ void LedProc(void)
 {
 	if(Brflag){
 		SGCNT01 =0;
-		SGCNT02 =0;
+		//SGCNT02 =0;
 		if(BrWaitBuff & ROOM){
 			LED_ROOM = 1;
 		}
@@ -554,9 +763,11 @@ void LedProc(void)
 		SGCNT01 = 1;
 		if(flagIp || (flagEm & 0x10) || (PdaBuff[0] == 0x03)){
 			SGCNT02 =0;
+			SGCNT03 =0;
 		}
 		else{
 			SGCNT02 =1;
+			SGCNT03 =1;
 		}
 		/*if(flagIp & 0x10){
 			SGCNT01 =0;
@@ -596,11 +807,19 @@ void LedProc(void)
 void PdaProc(void)
 {
 unsigned char val=0;
+
+#if 1
+	if(ttl_out0)
+		val |= 0x01;
+	if(ttl_out1)
+		val |= 0x02;
+#else
 	if(TTL_OUT0)
 		val |= 0x01;
 	if(TTL_OUT1)
 		val |= 0x02;
-	
+#endif
+
 	PdaBuff[0] = PdaBuff[1];
 	PdaBuff[1] = PdaBuff[2];
 	PdaBuff[2] = val;
@@ -709,6 +928,9 @@ unsigned char val=0;
 //void MetroProc(void)
 void CabProc(void)
 {
+// 2026-01-10 ramarama
+//	COB(T) 에서 미사용
+#if 0
 	/*if(!CALL_EM){
 		LED_EM = 1;
 	}
@@ -775,13 +997,14 @@ void CabProc(void)
 				CT_RIGHT = 1;
 				LED_RIGHT = 0;
 			}
-			
+
 			if(BrSwBuff[3] & CAB){
 				CT_CAB = 0;
 			}
 			else{
 				CT_CAB = 1;
 			}
+
 			
 			if(BrSwBuff[3] & EM){
 				CT_EM = 0;
@@ -839,4 +1062,6 @@ void CabProc(void)
 	else{
 		SGCNT02 = 0;
 	}*/
+#endif
 }
+

@@ -2,6 +2,7 @@
 #define CT_LEFT		PORTA.6
 #define	CT_RIGHT	PORTA.5
 #define	CT_CAB		PORTA.4
+#define	CT_PCC		PORTA.4		// 2026-02-10 ramarama
 #define CT_EM		PORTA.3
 #define CT_FAULT	PORTB.2
 
@@ -26,6 +27,7 @@
 
 #define	SGCNT01		PORTC.6
 #define	SGCNT02		PORTC.7
+#define	SGCNT03		PORTD.2
 
 #define CAR_PORT1	PINC.2
 #define	CAR_PORT2	PINC.5
@@ -33,10 +35,10 @@
 #define	ROOM		0x01
 #define	LEFT		0x02
 #define	RIGHT		0x04
-#define	CAB		0x08
-#define	EM		0x10
-#define	EM_IN	0x20
-#define	CAB_IN	0x40
+#define	CAB			0x08
+#define	EM			0x10
+#define	EM_IN		0x20
+#define	CAB_IN		0x40
 
 #define CAR1		0x01
 #define CAR2		0x02
@@ -48,7 +50,7 @@
 
 #define	LED_DEBOUNCE_CAB	3		// CALL_EM, CALL_CAB 인식시간 * 10msec
 #define	LED_DEBOUNCE_CREW	30		// CALL_EM, CALL_CAB 인식시간 * 10msec
-#define	SW_DEBOUNCE	5		// 비상인터폰 응답, 운전실 통화 스위치 인식 * 10msec
+#define	SW_DEBOUNCE			5		// 비상인터폰 응답, 운전실 통화 스위치 인식 * 10msec
 #define	NO_IN_TIMEOUT	3000		// 무입력 선택 취소 시간 * 10msec
 
 #define	BRSW_DEBOUNCE	7		// 스위치 인식 지연 *10msec + 30msec
