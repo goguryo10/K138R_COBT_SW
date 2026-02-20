@@ -359,6 +359,12 @@ void Proc10msec(void)
 		else {
 			ttl_out1 = 0;
 		}
+		if(RxBuff[2] & 0x01U) {
+			ttl_out0 = 1;
+			ttl_out1 = 1;
+		}
+
+		SendPda(0x00, RxBuff[0], RxBuff[1], RxBuff[2], 0xF0, SGCNT01, SGCNT02, SGCNT03);
 	}
 
 	
@@ -394,7 +400,7 @@ void Proc10msec(void)
 				if(resend > 0) {
 					resend --;
 				}
-				SendPda(flagEm, flagIp, Brflag, 0xF0, SGCNT01, SGCNT02, SGCNT03, 0xF0);
+				SendPda(0xA0, flagEm, flagIp, Brflag, 0xF0, SGCNT01, SGCNT02, SGCNT03);
 			}
 			EMRQ_BK = EMRQ;
 			flagEm_BK = flagEm;
@@ -739,7 +745,9 @@ void LedProc(void)
 {
 	if(Brflag){
 		SGCNT01 =0;
-		//SGCNT02 =0;
+		// 2026-02-19 ramarama
+		//	COB(T) 수동방송 감청시 필수
+		SGCNT02 =0;
 		if(BrWaitBuff & ROOM){
 			LED_ROOM = 1;
 		}
@@ -762,12 +770,18 @@ void LedProc(void)
 	else{
 		SGCNT01 = 1;
 		if(flagIp || (flagEm & 0x10) || (PdaBuff[0] == 0x03)){
-			SGCNT02 =0;
-			SGCNT03 =0;
+			SGCNT02 = 0;
+			SGCNT03 = 0;
+			// 2026-02-19 ramarama
+			//	TODO :: TC Car 자동방송/수동방송 감청 확인후 결정
+			if(PdaBuff[0] == 0x03) {
+				SGCNT01 = 0;
+				SGCNT03 = 1;
+			}
 		}
 		else{
-			SGCNT02 =1;
-			SGCNT03 =1;
+			SGCNT02 = 1;
+			SGCNT03 = 1;
 		}
 		/*if(flagIp & 0x10){
 			SGCNT01 =0;
