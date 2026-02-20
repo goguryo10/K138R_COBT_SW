@@ -780,8 +780,16 @@ void LedProc(void)
 			}
 		}
 		else{
+			// 2026-02-20 ramarama
+			//	CPU에서 받는 통신지연으로 감청기능 활성이 늦어지느느 문제 개선을 위해 항시 열어준다
+			#if 1
+			SGCNT01 = 0;
+			SGCNT02 = 0;
+			SGCNT03 = 1;
+			#else
 			SGCNT02 = 1;
 			SGCNT03 = 1;
+			#endif
 		}
 		/*if(flagIp & 0x10){
 			SGCNT01 =0;
