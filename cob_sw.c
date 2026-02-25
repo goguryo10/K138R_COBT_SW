@@ -744,10 +744,13 @@ void MicProc(void)
 void LedProc(void)
 {
 	if(Brflag){
-		SGCNT01 =0;
+		SGCNT01 = 0;
 		// 2026-02-19 ramarama
 		//	COB(T) 수동방송 감청시 필수
-		SGCNT02 =0;
+		SGCNT02 = 0;
+		// 2026-02-19 ramarama
+		//	COB(T) 수동방송 감청시 필수
+		SGCNT03 = 0;
 		if(BrWaitBuff & ROOM){
 			LED_ROOM = 1;
 		}
