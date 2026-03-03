@@ -94,6 +94,8 @@ unsigned char countBrSw;
 unsigned char flagEm;
 unsigned char flagIp;
 
+unsigned char flagLED;
+
 unsigned char countEmBlink;
 unsigned int countWaitEm;
 

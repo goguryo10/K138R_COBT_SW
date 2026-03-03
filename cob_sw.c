@@ -342,6 +342,7 @@ void Proc10msec(void)
 	static unsigned char flagEm_BK = 0;
 	static unsigned char flagIp_BK = 0;
 	static unsigned char Brflag_BK = 0;
+	static unsigned char BrWaitBuff_BK = 0;
 	static unsigned char resend = 0;
 
 	if(flagRx) {
@@ -392,7 +393,7 @@ void Proc10msec(void)
 			EMRQ = CALL_EM;
 
 			//if((EMRQ_BK!=EMRQ) || (flagEm_BK!=flagEm) || (flagIp_BK!=flagIp) || (Brflag_BK!=Brflag))
-			if((resend>0) || (flagEm_BK!=flagEm) || (flagIp_BK!=flagIp) || (Brflag_BK!=Brflag))
+			if((resend>0) || (flagEm_BK!=flagEm) || (flagIp_BK!=flagIp) || (Brflag_BK!=Brflag) || (BrWaitBuff_BK!=BrWaitBuff))
 			{
 				if(resend == 0) {
 					resend = 3;
@@ -400,12 +401,32 @@ void Proc10msec(void)
 				if(resend > 0) {
 					resend --;
 				}
-				SendPda(0xA0, flagEm, flagIp, Brflag, 0xF0, SGCNT01, SGCNT02, SGCNT03);
+
+				flagLED = 0x40;	// Valid
+				
+				if(flagEm&0x10) {
+					flagLED |= 0x10U;
+				}
+				if(BrWaitBuff&RIGHT) {
+					flagLED |= 0x08U;
+				}
+				if(BrWaitBuff&ROOM) {
+					flagLED |= 0x04U;
+				}
+				if(flagIp != 0x00) {
+					flagLED |= 0x02U;
+				}
+				if(BrWaitBuff&LEFT) {
+					flagLED |= 0x01U;
+				}
+					
+				SendPda(0xA0, flagEm, flagIp, Brflag, flagLED, SGCNT01, SGCNT02, SGCNT03);
 			}
 			EMRQ_BK = EMRQ;
 			flagEm_BK = flagEm;
 			flagIp_BK = flagIp;
 			Brflag_BK = Brflag;
+			BrWaitBuff_BK = BrWaitBuff;
 		}
 
 	}
