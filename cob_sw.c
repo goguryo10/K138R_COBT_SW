@@ -364,8 +364,13 @@ void Proc10msec(void)
 			ttl_out0 = 1;
 			ttl_out1 = 1;
 		}
+		if((RxBuff[3] & 0x80U) == 0x00U) {
+			if(flagEm == 0x01U) {
+				flagEm = 0x00U;
+			}
+		}
 
-		SendPda(0x00, RxBuff[0], RxBuff[1], RxBuff[2], 0xF0, SGCNT01, SGCNT02, SGCNT03);
+		SendPda(0x00, flagEm, flagIp, Brflag, 0xF0, SGCNT01, SGCNT02, SGCNT03);
 	}
 
 	

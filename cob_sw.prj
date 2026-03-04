@@ -90,7 +90,7 @@ WarningCantAllocVarToReg=1
 WarningDataStackUsage=1
 WarningHardwareStackLow=1
 DebugBootLoader=0
-Build=150
+Build=152
 UseEEPROMLocation0=1
 [DefinedSymbols]
 Count=0
